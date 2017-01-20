@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -e
+
+if [[ -z $CONCOURSE_URI || -z $CONCOURSE_TARGET || -z $CONCOURSE_USER || -z $CONCOURSE_PASSWORD || \
+      -z $VAULT_ADDR || -z $VAULT_TOKEN || \
+      -z $GIT_PRIVATE_KEY_PATH || -z $FOUNDATION_NAME ]]; then
+  echo "one the following environment variables is not set: "
+  echo ""
+  echo "                 CONCOURSE_URI"
+  echo "                 CONCOURSE_TARGET"
+  echo "                 CONCOURSE_USER"
+  echo "                 CONCOURSE_PASSWORD"
+  echo "                 VAULT_ADDR"
+  echo "                 VAULT_TOKEN"
+  echo "                 FOUNDATION_NAME"
+  echo ""
+  exit 1
+fi
+
+echo "Updating $FOUNDATION_NAME management pipeline on $CONCOURSE_TARGET concourse."
+
+fly -t $CONCOURSE_TARGET login -c $CONCOURSE_URI -u $CONCOURSE_USER -p $CONCOURSE_PASSWORD
+fly -t $CONCOURSE_TARGET set-pipeline -p cf-mgmt-$FOUNDATION_NAME \
+							-c ci/pipeline.yml \
+							--var "foundation_name=$FOUNDATION_NAME" \
+							--var "git_private_key=$(cat $GIT_PRIVATE_KEY_PATH)" \
+							--var "vault_address=$VAULT_ADDR" \
+							--var "vault_token=$VAULT_TOKEN" \
+
+fly -t $CONCOURSE_TARGET unpause-pipeline -p cf-mgmt-$FOUNDATION_NAME
+
+echo "Done."
